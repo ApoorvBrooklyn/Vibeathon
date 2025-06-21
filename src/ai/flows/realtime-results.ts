@@ -32,7 +32,8 @@ export async function generateRealtimeResult(input: GenerateRealtimeResultInput)
 const generateRealtimeResultPrompt = ai.definePrompt({
   name: 'generateRealtimeResultPrompt',
   input: {schema: GenerateRealtimeResultInputSchema},
-  output: {schema: GenerateRealtimeResultOutputSchema},
+  // The prompt should only be responsible for generating the text result.
+  output: {schema: z.object({result: z.string()})},
   prompt: `{{prompt}}`,
 });
 
@@ -48,18 +49,20 @@ const generateRealtimeResultFlow = ai.defineFlow(
     const endTime = Date.now();
     const latency = endTime - startTime;
 
+    const resultText = output?.result || '';
+    
     // Basic quality assignment logic. Could be replaced with a more sophisticated model.
     let quality = '🤔';
-    if (output?.result && output.result.length > 10) {
+    if (resultText.length > 10) {
       quality = '👍';
-    } else if (output?.result && output.result.length > 5) {
+    } else if (resultText.length > 5) {
       quality = '👌';
     }
 
     return {
-      result: output?.result || '',
+      result: resultText,
       quality: quality,
-      length: output?.result?.length || 0,
+      length: resultText.length,
       latency: latency,
       tokenUsage: usage.totalTokens,
     };
