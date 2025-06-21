@@ -48,6 +48,7 @@ interface PromptCardProps {
   onUpdate: (id: number, data: Partial<Prompt>) => void;
   onDelete: (id: number) => void;
   index: number;
+  model: string;
 }
 
 function Metric({
@@ -86,6 +87,7 @@ export function PromptCard({
   onUpdate,
   onDelete,
   index,
+  model,
 }: PromptCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -104,7 +106,7 @@ export function PromptCard({
     }
     setIsLoading(true);
     try {
-      const result = await runPromptAction(promptData.prompt);
+      const result = await runPromptAction(promptData.prompt, model);
       onUpdate(promptData.id, { result });
     } catch (error) {
       console.error('Error running prompt:', error);
@@ -129,7 +131,7 @@ export function PromptCard({
     }
     setIsOptimizing(true);
     try {
-      const result = await optimizePromptAction(promptData.prompt);
+      const result = await optimizePromptAction(promptData.prompt, model);
       setOptimization(result);
       setOptimizeOpen(true);
     } catch (error) {

@@ -13,6 +13,7 @@ import {z} from 'genkit';
 
 const PromptOptimizerInputSchema = z.object({
   prompt: z.string().describe('The prompt to be optimized.'),
+  model: z.string().describe('The model to use for optimization.'),
 });
 export type PromptOptimizerInput = z.infer<typeof PromptOptimizerInputSchema>;
 
@@ -30,7 +31,7 @@ export async function promptOptimizer(input: PromptOptimizerInput): Promise<Prom
 
 const prompt = ai.definePrompt({
   name: 'promptOptimizerPrompt',
-  input: {schema: PromptOptimizerInputSchema},
+  input: {schema: z.object({prompt: z.string()})},
   output: {schema: PromptOptimizerOutputSchema},
   prompt: `You are an expert prompt engineer. Your job is to take a user-provided prompt and improve it.
 
@@ -51,7 +52,10 @@ const promptOptimizerFlow = ai.defineFlow(
     outputSchema: PromptOptimizerOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await prompt(
+      {prompt: input.prompt},
+      {model: `googleai/${input.model}`}
+    );
     return output!;
   }
 );

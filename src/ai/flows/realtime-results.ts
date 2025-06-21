@@ -13,6 +13,7 @@ import {z} from 'genkit';
 
 const GenerateRealtimeResultInputSchema = z.object({
   prompt: z.string().describe('The prompt variation to send to the LLM.'),
+  model: z.string().describe('The model to use for generation.'),
 });
 export type GenerateRealtimeResultInput = z.infer<typeof GenerateRealtimeResultInputSchema>;
 
@@ -31,7 +32,7 @@ export async function generateRealtimeResult(input: GenerateRealtimeResultInput)
 
 const generateRealtimeResultPrompt = ai.definePrompt({
   name: 'generateRealtimeResultPrompt',
-  input: {schema: GenerateRealtimeResultInputSchema},
+  input: {schema: z.object({prompt: z.string()})},
   // The prompt should only be responsible for generating the text result.
   output: {schema: z.object({result: z.string()})},
   prompt: `{{prompt}}`,
@@ -45,12 +46,15 @@ const generateRealtimeResultFlow = ai.defineFlow(
   },
   async input => {
     const startTime = Date.now();
-    const {output, usage} = await generateRealtimeResultPrompt(input);
+    const {output, usage} = await generateRealtimeResultPrompt(
+      {prompt: input.prompt},
+      {model: `googleai/${input.model}`}
+    );
     const endTime = Date.now();
     const latency = endTime - startTime;
 
     const resultText = output?.result || '';
-    
+
     // Basic quality assignment logic. Could be replaced with a more sophisticated model.
     let quality = '🤔';
     if (resultText.length > 10) {

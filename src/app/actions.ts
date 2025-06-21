@@ -10,15 +10,17 @@ import {
 } from '@/ai/flows/prompt-optimizer';
 
 export async function runPromptAction(
-  prompt: string
+  prompt: string,
+  model: string
 ): Promise<GenerateRealtimeResultOutput> {
-  const result = await generateRealtimeResult({ prompt });
+  const result = await generateRealtimeResult({prompt, model});
   return result;
 }
 
 export async function optimizePromptAction(
-  prompt: string
+  prompt: string,
+  model: string
 ): Promise<PromptOptimizerOutput> {
-  const result = await promptOptimizer({ prompt });
+  const result = await promptOptimizer({prompt, model});
   return result;
 }
