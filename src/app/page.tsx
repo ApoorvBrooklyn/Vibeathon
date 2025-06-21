@@ -19,7 +19,7 @@ const initialPrompts: Prompt[] = [
     id: 1,
     prompt: 'Write a short, upbeat marketing slogan for a new brand of coffee called "Morning Star".',
     result: null,
-    model: 'gemini-2.0-flash',
+    model: 'gemini-1.5-flash',
   },
 ];
 
@@ -68,7 +68,7 @@ export default function Home() {
         id: nextId.current++,
         prompt: '',
         result: null,
-        model: 'gemini-2.0-flash',
+        model: 'gemini-1.5-flash',
       },
     ]);
   }, []);
@@ -128,11 +128,11 @@ export default function Home() {
             <h1 className="font-headline text-2xl font-bold">PromptPilot</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button onClick={addPrompt} variant="outline">
+            <Button onClick={addPrompt}>
               <PlusIcon />
               Add Prompt
             </Button>
-            <Button onClick={handleExport} disabled={prompts.length === 0}>
+            <Button onClick={handleExport} variant="outline" disabled={prompts.length === 0}>
               <Download />
               Export CSV
             </Button>

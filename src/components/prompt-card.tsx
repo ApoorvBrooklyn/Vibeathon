@@ -58,9 +58,9 @@ interface PromptCardProps {
 }
 
 const models = [
-  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
   { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
   { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Dev Preview)' },
 ];
 
 function Metric({
@@ -242,7 +242,7 @@ export function PromptCard({
             <Button
               onClick={handleRun}
               disabled={isLoading || isOptimizing}
-              className="w-full bg-primary/80 hover:bg-primary text-primary-foreground"
+              className="w-full"
             >
               {isLoading ? <Loader2 className="animate-spin" /> : <Play />}
               Run
@@ -298,22 +298,22 @@ export function PromptCard({
             </div>
           </div>
         </CardContent>
-        <CardFooter className="flex h-14 items-center justify-between gap-4 rounded-b-lg bg-muted/30 px-6 py-2">
+        <CardFooter className="flex h-14 items-center justify-between gap-4 border-t bg-muted/50 px-6 py-2">
           {promptData.result ? (
             <>
               <Metric
-                icon={<FileText className="h-4 w-4 text-accent" />}
+                icon={<FileText className="h-4 w-4" />}
                 value={promptData.result.length}
                 label="Length (chars)"
               />
               <Metric
-                icon={<Timer className="h-4 w-4 text-accent" />}
+                icon={<Timer className="h-4 w-4" />}
                 value={promptData.result.latency}
                 label="Latency"
                 unit="ms"
               />
               <Metric
-                icon={<Cpu className="h-4 w-4 text-accent" />}
+                icon={<Cpu className="h-4 w-4" />}
                 value={promptData.result.tokenUsage}
                 label="Tokens Used"
               />
