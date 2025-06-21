@@ -123,9 +123,13 @@ export function PromptCard({
       onUpdate(promptData.id, { result });
     } catch (error) {
       console.error('Error running prompt:', error);
+      let description = 'Failed to get a result from the AI.';
+      if (error instanceof Error && error.message.includes('429')) {
+        description = 'Rate limit exceeded. Please wait a moment before trying again.';
+      }
       toast({
         title: 'Error',
-        description: 'Failed to get a result from the AI.',
+        description,
         variant: 'destructive',
       });
     } finally {
