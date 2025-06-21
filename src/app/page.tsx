@@ -18,6 +18,7 @@ const initialPrompts: Prompt[] = [
   {
     id: 1,
     prompt: 'Write a short, upbeat marketing slogan for a new brand of coffee called "Morning Star".',
+    evaluationCriteria: 'Is it catchy? Is it under 10 words?',
     result: null,
     model: 'gemini-1.5-flash',
   },
@@ -36,6 +37,10 @@ const chartConfig = {
     label: 'Tokens',
     color: 'hsl(var(--chart-3))',
   },
+  qualityScore: {
+    label: 'Quality Score',
+    color: 'hsl(var(--chart-4))',
+  },
 } satisfies ChartConfig;
 
 
@@ -43,7 +48,7 @@ export default function Home() {
   const [prompts, setPrompts] = useState<Prompt[]>(initialPrompts);
   const nextId = useRef(initialPrompts.length + 1);
   const [activeChart, setActiveChart] = useState<'bar' | 'line' | 'radar'>('bar');
-  const [selectedMetrics, setSelectedMetrics] = useState<(keyof typeof chartConfig)[]>(['latency', 'length']);
+  const [selectedMetrics, setSelectedMetrics] = useState<(keyof typeof chartConfig)[]>(['latency', 'length', 'qualityScore']);
 
   const chartData = useMemo(() => {
     return prompts
@@ -58,6 +63,7 @@ export default function Home() {
         latency: item.prompt.result!.latency,
         length: item.prompt.result!.length,
         tokenUsage: item.prompt.result!.tokenUsage,
+        qualityScore: item.prompt.result!.quality?.score ?? 0,
       }));
   }, [prompts]);
 
@@ -67,6 +73,7 @@ export default function Home() {
       {
         id: nextId.current++,
         prompt: '',
+        evaluationCriteria: '',
         result: null,
         model: 'gemini-1.5-flash',
       },
@@ -87,9 +94,11 @@ export default function Home() {
     const headers = [
       'id',
       'prompt',
+      'evaluation_criteria',
       'model',
       'result',
-      'quality',
+      'quality_score',
+      'quality_explanation',
       'length',
       'latency_ms',
       'tokens',
@@ -98,9 +107,11 @@ export default function Home() {
       [
         p.id,
         `"${p.prompt.replace(/"/g, '""')}"`,
+        `"${p.evaluationCriteria.replace(/"/g, '""')}"`,
         p.model,
         `"${p.result?.result.replace(/"/g, '""') ?? ''}"`,
-        p.result?.quality ?? '',
+        p.result?.quality?.score ?? '',
+        `"${p.result?.quality?.explanation.replace(/"/g, '""') ?? ''}"`,
         p.result?.length ?? '',
         p.result?.latency ?? '',
         p.result?.tokenUsage ?? '',

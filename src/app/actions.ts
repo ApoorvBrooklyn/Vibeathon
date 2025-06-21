@@ -11,9 +11,10 @@ import {
 
 export async function runPromptAction(
   prompt: string,
-  model: string
+  model: string,
+  evaluationCriteria: string
 ): Promise<GenerateRealtimeResultOutput> {
-  const result = await generateRealtimeResult({prompt, model});
+  const result = await generateRealtimeResult({prompt, model, evaluationCriteria});
   return result;
 }
 

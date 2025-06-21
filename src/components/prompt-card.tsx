@@ -38,6 +38,7 @@ import {
   Cpu,
   Loader2,
   Copy,
+  Star,
 } from 'lucide-react';
 import type { Prompt } from '@/lib/types';
 import type { PromptOptimizerOutput } from '@/ai/flows/prompt-optimizer';
@@ -87,7 +88,7 @@ function Metric({
           </div>
         </TooltipTrigger>
         <TooltipContent>
-          <p>{label}</p>
+          <p className="max-w-xs">{label}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -119,13 +120,18 @@ export function PromptCard({
     }
     setIsLoading(true);
     try {
-      const result = await runPromptAction(promptData.prompt, promptData.model);
+      const result = await runPromptAction(
+        promptData.prompt,
+        promptData.model,
+        promptData.evaluationCriteria
+      );
       onUpdate(promptData.id, { result });
     } catch (error) {
       console.error('Error running prompt:', error);
       let description = 'Failed to get a result from the AI.';
       if (error instanceof Error && error.message.includes('429')) {
-        description = 'Rate limit exceeded. Please wait a moment before trying again.';
+        description =
+          'Rate limit exceeded. Please wait a moment before trying again.';
       }
       toast({
         title: 'Error',
@@ -242,6 +248,21 @@ export function PromptCard({
               className="resize-none"
             />
           </div>
+          <div className="grid gap-2">
+            <Label htmlFor={`criteria-${promptData.id}`}>
+              Evaluation Criteria (Optional)
+            </Label>
+            <Textarea
+              id={`criteria-${promptData.id}`}
+              placeholder="e.g., 'Is the tone professional? Does it directly answer the user's question?'"
+              value={promptData.evaluationCriteria}
+              onChange={e =>
+                onUpdate(promptData.id, { evaluationCriteria: e.target.value })
+              }
+              rows={3}
+              className="resize-none"
+            />
+          </div>
           <div className="flex gap-2">
             <Button
               onClick={handleRun}
@@ -321,18 +342,13 @@ export function PromptCard({
                 value={promptData.result.tokenUsage}
                 label="Tokens Used"
               />
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="text-xl">
-                      {promptData.result.quality}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Quality Score</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {promptData.result.quality && (
+                <Metric
+                  icon={<Star className="h-4 w-4 text-yellow-400 fill-current" />}
+                  value={`${promptData.result.quality.score}/5`}
+                  label={promptData.result.quality.explanation}
+                />
+              )}
             </>
           ) : (
             <span className="text-sm text-muted-foreground">

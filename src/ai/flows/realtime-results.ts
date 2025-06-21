@@ -14,19 +14,40 @@ import {z} from 'genkit';
 const GenerateRealtimeResultInputSchema = z.object({
   prompt: z.string().describe('The prompt variation to send to the LLM.'),
   model: z.string().describe('The model to use for generation.'),
+  evaluationCriteria: z
+    .string()
+    .optional()
+    .describe('Optional criteria to evaluate the quality of the result.'),
 });
-export type GenerateRealtimeResultInput = z.infer<typeof GenerateRealtimeResultInputSchema>;
+export type GenerateRealtimeResultInput = z.infer<
+  typeof GenerateRealtimeResultInputSchema
+>;
+
+const QualityEvaluationSchema = z.object({
+  score: z
+    .number()
+    .min(1)
+    .max(5)
+    .describe('A quality score from 1 to 5, where 5 is best.'),
+  explanation: z.string().describe('A brief explanation for the given score.'),
+});
 
 const GenerateRealtimeResultOutputSchema = z.object({
   result: z.string().describe('The result from the LLM.'),
-  quality: z.string().describe('An emoji representing the quality of the result.'),
+  quality: QualityEvaluationSchema.optional().describe(
+    'An AI-powered quality evaluation of the result.'
+  ),
   length: z.number().describe('The length of the result in characters.'),
   latency: z.number().describe('The latency of the LLM response in milliseconds.'),
   tokenUsage: z.number().describe('The number of tokens used by the LLM.'),
 });
-export type GenerateRealtimeResultOutput = z.infer<typeof GenerateRealtimeResultOutputSchema>;
+export type GenerateRealtimeResultOutput = z.infer<
+  typeof GenerateRealtimeResultOutputSchema
+>;
 
-export async function generateRealtimeResult(input: GenerateRealtimeResultInput): Promise<GenerateRealtimeResultOutput> {
+export async function generateRealtimeResult(
+  input: GenerateRealtimeResultInput
+): Promise<GenerateRealtimeResultOutput> {
   return generateRealtimeResultFlow(input);
 }
 
@@ -36,6 +57,37 @@ const generateRealtimeResultPrompt = ai.definePrompt({
   // The prompt should only be responsible for generating the text result.
   output: {schema: z.object({result: z.string()})},
   prompt: `{{prompt}}`,
+});
+
+const qualityEvaluatorPrompt = ai.definePrompt({
+  name: 'qualityEvaluatorPrompt',
+  input: {
+    schema: z.object({
+      prompt: z.string(),
+      result: z.string(),
+      criteria: z.string(),
+    }),
+  },
+  output: {schema: QualityEvaluationSchema},
+  prompt: `You are an expert evaluator. Your task is to assess the quality of an AI-generated text based on a given prompt and specific evaluation criteria.
+
+Please provide a score from 1 to 5 (where 1 is poor and 5 is excellent) and a brief explanation for your rating.
+
+**Original Prompt:**
+\`\`\`
+{{prompt}}
+\`\`\`
+
+**Evaluation Criteria:**
+\`\`\`
+{{criteria}}
+\`\`\`
+
+**Generated Result to Evaluate:**
+\`\`\`
+{{result}}
+\`\`\`
+`,
 });
 
 const generateRealtimeResultFlow = ai.defineFlow(
@@ -55,12 +107,17 @@ const generateRealtimeResultFlow = ai.defineFlow(
 
     const resultText = output?.result || '';
 
-    // Basic quality assignment logic. Could be replaced with a more sophisticated model.
-    let quality = '🤔';
-    if (resultText.length > 10) {
-      quality = '👍';
-    } else if (resultText.length > 5) {
-      quality = '👌';
+    let quality;
+    if (input.evaluationCriteria && resultText) {
+      const evaluationResult = await qualityEvaluatorPrompt(
+        {
+          prompt: input.prompt,
+          result: resultText,
+          criteria: input.evaluationCriteria,
+        },
+        {model: 'googleai/gemini-1.5-flash'}
+      ); // Use a fast model for evaluation
+      quality = evaluationResult.output;
     }
 
     return {
