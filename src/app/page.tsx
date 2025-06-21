@@ -4,12 +4,15 @@ import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { PromptCard } from '@/components/prompt-card';
 import type { Prompt } from '@/lib/types';
-import { Download, PlusIcon, Bot, BarChart2, LayoutGrid } from 'lucide-react';
+import { Download, PlusIcon, Bot, BarChart2, LayoutGrid, LineChart as LineChartIcon, Radar as RadarIcon } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ChartConfig } from '@/components/ui/chart';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Bar, BarChart, CartesianGrid, Legend, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Legend, XAxis, YAxis, Line, LineChart, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar as RechartsRadar } from 'recharts';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 
 const initialPrompts: Prompt[] = [
@@ -39,6 +42,8 @@ const chartConfig = {
 export default function Home() {
   const [prompts, setPrompts] = useState<Prompt[]>(initialPrompts);
   const nextId = useRef(initialPrompts.length + 1);
+  const [activeChart, setActiveChart] = useState<'bar' | 'line' | 'radar'>('bar');
+  const [selectedMetrics, setSelectedMetrics] = useState<(keyof typeof chartConfig)[]>(['latency', 'length']);
 
   const chartData = useMemo(() => {
     return prompts
@@ -168,32 +173,85 @@ export default function Home() {
              {chartData.length > 0 ? (
               <Card>
                 <CardHeader>
-                  <CardTitle>Analytics Overview</CardTitle>
-                  <CardDescription>
-                    Comparison of performance metrics across all prompt variations with results.
-                  </CardDescription>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <CardTitle>Analytics Overview</CardTitle>
+                            <CardDescription>
+                            Use the controls to toggle metrics and chart types.
+                            </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-4 text-sm">
+                                {(Object.keys(chartConfig) as Array<keyof typeof chartConfig>).map((key) => (
+                                    <div key={key} className="flex items-center gap-2">
+                                        <Checkbox
+                                            id={`metric-${key}`}
+                                            checked={selectedMetrics.includes(key)}
+                                            onCheckedChange={(checked) => {
+                                                setSelectedMetrics(prev => 
+                                                    checked ? [...prev, key] : prev.filter((m) => m !== key)
+                                                )
+                                            }}
+                                        />
+                                        <Label htmlFor={`metric-${key}`} className="capitalize flex items-center gap-1.5 cursor-pointer">
+                                            <span style={{ backgroundColor: chartConfig[key].color }} className="w-2.5 h-2.5 rounded-full inline-block" />
+                                            {chartConfig[key].label}
+                                        </Label>
+                                    </div>
+                                ))}
+                            </div>
+                            <ToggleGroup type="single" value={activeChart} onValueChange={(value: 'bar' | 'line' | 'radar' | '') => { if (value) setActiveChart(value) }} aria-label="Chart type" variant="outline" size="sm">
+                                <ToggleGroupItem value="bar" aria-label="Bar chart">
+                                    <BarChart2 className="h-4 w-4" />
+                                </ToggleGroupItem>
+                                <ToggleGroupItem value="line" aria-label="Line chart">
+                                    <LineChartIcon className="h-4 w-4" />
+                                </ToggleGroupItem>
+                                <ToggleGroupItem value="radar" aria-label="Radar chart">
+                                    <RadarIcon className="h-4 w-4" />
+                                </ToggleGroupItem>
+                            </ToggleGroup>
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
-                  <ChartContainer config={chartConfig} className="min-h-[400px] w-full">
-                    <BarChart accessibilityLayer data={chartData}>
-                      <CartesianGrid vertical={false} />
-                      <XAxis
-                        dataKey="name"
-                        tickLine={false}
-                        tickMargin={10}
-                        axisLine={false}
-                        />
-                      <YAxis yAxisId="left" orientation="left" stroke="hsl(var(--chart-1))" />
-                      <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--chart-2))" />
-                      <ChartTooltip
-                        cursor={false}
-                        content={<ChartTooltipContent indicator="dot" />}
-                      />
-                      <Legend />
-                      <Bar dataKey="latency" fill="var(--color-latency)" radius={4} yAxisId="left" />
-                      <Bar dataKey="length" fill="var(--color-length)" radius={4} yAxisId="right" />
-                      <Bar dataKey="tokenUsage" fill="var(--color-tokenUsage)" radius={4} yAxisId="left" />
-                    </BarChart>
+                  <ChartContainer config={chartConfig} className="min-h-[450px] w-full">
+                    {activeChart === 'bar' && (
+                        <BarChart data={chartData}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
+                            <YAxis />
+                            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                            <Legend />
+                            {selectedMetrics.map(metric => (
+                                <Bar key={metric} dataKey={metric} fill={`var(--color-${metric})`} radius={4} />
+                            ))}
+                        </BarChart>
+                    )}
+                    {activeChart === 'line' && (
+                        <LineChart data={chartData}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
+                            <YAxis />
+                            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                            <Legend />
+                             {selectedMetrics.map(metric => (
+                                <Line key={metric} type="monotone" dataKey={metric} stroke={`var(--color-${metric})`} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                            ))}
+                        </LineChart>
+                    )}
+                    {activeChart === 'radar' && (
+                        <RadarChart data={chartData}>
+                            <CartesianGrid />
+                            <PolarAngleAxis dataKey="name" />
+                            <PolarRadiusAxis angle={30} domain={[0, 'auto']} />
+                            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                            <Legend />
+                            {selectedMetrics.map(metric => (
+                                <RechartsRadar key={metric} name={chartConfig[metric].label} dataKey={metric} stroke={`var(--color-${metric})`} fill={`var(--color-${metric})`} fillOpacity={0.6} />
+                            ))}
+                        </RadarChart>
+                    )}
                   </ChartContainer>
                 </CardContent>
               </Card>
