@@ -7,3 +7,10 @@ export interface Prompt {
   result: GenerateRealtimeResultOutput | null;
   model: string;
 }
+
+export interface SavedPrompt {
+  id: number;
+  prompt: string;
+  evaluationCriteria: string;
+  model: string;
+}

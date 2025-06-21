@@ -39,6 +39,7 @@ import {
   Loader2,
   Copy,
   Star,
+  Bookmark,
 } from 'lucide-react';
 import type { Prompt } from '@/lib/types';
 import type { PromptOptimizerOutput } from '@/ai/flows/prompt-optimizer';
@@ -55,13 +56,13 @@ interface PromptCardProps {
   promptData: Prompt;
   onUpdate: (id: number, data: Partial<Prompt>) => void;
   onDelete: (id: number) => void;
+  onSave: (prompt: Prompt) => void;
   index: number;
 }
 
 const models = [
   { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
   { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Dev Preview)' },
 ];
 
 function Metric({
@@ -99,6 +100,7 @@ export function PromptCard({
   promptData,
   onUpdate,
   onDelete,
+  onSave,
   index,
 }: PromptCardProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -191,6 +193,18 @@ export function PromptCard({
     });
   };
 
+  const handleSave = () => {
+    if (!promptData.prompt) {
+      toast({
+        title: 'Empty Prompt',
+        description: "You can't save an empty prompt.",
+        variant: 'destructive',
+      });
+      return;
+    }
+    onSave(promptData);
+  };
+
   return (
     <>
       <Card className="flex h-full flex-col">
@@ -198,23 +212,42 @@ export function PromptCard({
           <CardTitle className="font-headline text-lg">
             Variation {index + 1}
           </CardTitle>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={() => onDelete(promptData.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Delete Variation</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="flex items-center gap-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-primary"
+                    onClick={handleSave}
+                  >
+                    <Bookmark className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Save to Library</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => onDelete(promptData.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Delete Variation</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col gap-4">
           <div className="grid gap-2">

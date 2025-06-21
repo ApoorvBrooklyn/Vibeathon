@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PromptCard } from '@/components/prompt-card';
-import type { Prompt } from '@/lib/types';
-import { Download, PlusIcon, Bot, BarChart2, LayoutGrid, LineChart as LineChartIcon, Radar as RadarIcon } from 'lucide-react';
+import { SavedPromptsSidebar } from '@/components/saved-prompts-sidebar';
+import type { Prompt, SavedPrompt } from '@/lib/types';
+import { Download, PlusIcon, Bot, BarChart2, LayoutGrid, LineChart as LineChartIcon, Radar as RadarIcon, Bookmark as BookmarkIcon } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ChartConfig } from '@/components/ui/chart';
@@ -13,6 +14,9 @@ import { Bar, BarChart, CartesianGrid, Legend, XAxis, YAxis, Line, LineChart, Ra
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useToast } from "@/hooks/use-toast";
+
+const SAVED_PROMPTS_STORAGE_KEY = 'prompt-pilot-library';
 
 const initialPrompts: Prompt[] = [
   {
@@ -50,6 +54,32 @@ export default function Home() {
   const [activeChart, setActiveChart] = useState<'bar' | 'line' | 'radar'>('bar');
   const [selectedMetrics, setSelectedMetrics] = useState<(keyof typeof chartConfig)[]>(['latency', 'length', 'qualityScore']);
 
+  // New state for saved prompts library
+  const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>([]);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const { toast } = useToast();
+
+  // Load saved prompts from localStorage on mount
+  useEffect(() => {
+    try {
+      const storedPrompts = localStorage.getItem(SAVED_PROMPTS_STORAGE_KEY);
+      if (storedPrompts) {
+        setSavedPrompts(JSON.parse(storedPrompts));
+      }
+    } catch (error) {
+      console.error("Failed to load prompts from localStorage", error);
+    }
+  }, []);
+
+  // Persist saved prompts to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(SAVED_PROMPTS_STORAGE_KEY, JSON.stringify(savedPrompts));
+    } catch (error) {
+      console.error("Failed to save prompts to localStorage", error);
+    }
+  }, [savedPrompts]);
+
   const chartData = useMemo(() => {
     return prompts
       .map((p, index) => ({
@@ -67,15 +97,15 @@ export default function Home() {
       }));
   }, [prompts]);
 
-  const addPrompt = useCallback(() => {
+  const addPrompt = useCallback((data?: Partial<Omit<Prompt, 'id' | 'result'>>) => {
     setPrompts(prev => [
       ...prev,
       {
         id: nextId.current++,
-        prompt: '',
-        evaluationCriteria: '',
+        prompt: data?.prompt || '',
+        evaluationCriteria: data?.evaluationCriteria || '',
+        model: data?.model || 'gemini-1.5-flash',
         result: null,
-        model: 'gemini-1.5-flash',
       },
     ]);
   }, []);
@@ -89,6 +119,57 @@ export default function Home() {
   const deletePrompt = useCallback((id: number) => {
     setPrompts(prev => prev.filter(p => p.id !== id));
   }, []);
+
+  // Library functions
+  const savePromptToLibrary = useCallback((promptToSave: Prompt) => {
+    const data = {
+        prompt: promptToSave.prompt,
+        evaluationCriteria: promptToSave.evaluationCriteria,
+        model: promptToSave.model,
+    };
+
+    const isDuplicate = savedPrompts.some(p => p.prompt === data.prompt && p.model === data.model && p.evaluationCriteria === data.evaluationCriteria);
+
+    if (isDuplicate) {
+        toast({
+            title: "Already in Library",
+            description: "A prompt with the same content, model, and criteria already exists.",
+        });
+        return;
+    }
+
+    const newSavedPrompt: SavedPrompt = {
+      id: Date.now(),
+      ...data,
+    };
+    
+    setSavedPrompts(prev => [newSavedPrompt, ...prev]);
+    
+    toast({
+      title: "Prompt Saved",
+      description: "Your prompt has been added to the library.",
+    });
+  }, [savedPrompts, toast]);
+
+
+  const loadPromptFromLibrary = useCallback((savedPrompt: SavedPrompt) => {
+    addPrompt(savedPrompt);
+    setIsLibraryOpen(false); // Close sidebar after loading
+    toast({
+        title: "Prompt Loaded",
+        description: "The prompt has been added as a new variation.",
+    });
+  }, [addPrompt, toast]);
+
+  const deletePromptFromLibrary = useCallback((id: number) => {
+    setSavedPrompts(prev => prev.filter(p => p.id !== id));
+    toast({
+        title: "Prompt Deleted",
+        description: "The prompt has been removed from your library.",
+        variant: "destructive"
+    });
+  }, [toast]);
+
 
   const handleExport = useCallback(() => {
     const headers = [
@@ -131,154 +212,168 @@ export default function Home() {
   }, [prompts]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Bot className="h-7 w-7 text-primary" />
-            <h1 className="font-headline text-2xl font-bold">PromptPilot</h1>
+    <>
+      <div className="min-h-screen bg-background text-foreground">
+        <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container flex h-16 items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Bot className="h-7 w-7 text-primary" />
+              <h1 className="font-headline text-2xl font-bold">PromptPilot</h1>
+            </div>
+            <div className="flex items-center gap-2">
+               <Button onClick={() => addPrompt()} variant="secondary">
+                <PlusIcon />
+                Add Prompt
+              </Button>
+               <Button onClick={() => setIsLibraryOpen(true)}>
+                <BookmarkIcon />
+                Library
+              </Button>
+              <Button onClick={handleExport} variant="outline" disabled={prompts.length === 0}>
+                <Download />
+                Export CSV
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button onClick={addPrompt}>
-              <PlusIcon />
-              Add Prompt
-            </Button>
-            <Button onClick={handleExport} variant="outline" disabled={prompts.length === 0}>
-              <Download />
-              Export CSV
-            </Button>
-          </div>
-        </div>
-      </header>
+        </header>
 
-      <main className="container mx-auto p-4 md:p-8">
-        <Tabs defaultValue="cards" className="w-full">
-          <div className="flex justify-end mb-4">
-            <TabsList>
-              <TabsTrigger value="cards"><LayoutGrid className="mr-2 h-4 w-4" />Card View</TabsTrigger>
-              <TabsTrigger value="analytics" disabled={chartData.length === 0}><BarChart2 className="mr-2 h-4 w-4" />Analytics</TabsTrigger>
-            </TabsList>
-          </div>
-          <TabsContent value="cards">
-            {prompts.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {prompts.map((prompt, index) => (
-                  <PromptCard
-                    key={prompt.id}
-                    promptData={prompt}
-                    onUpdate={updatePrompt}
-                    onDelete={deletePrompt}
-                    index={index}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="flex h-[60vh] flex-col items-center justify-center rounded-xl border-2 border-dashed">
-                <h2 className="text-xl font-medium text-muted-foreground">No prompts yet.</h2>
-                <p className="text-muted-foreground">Click "Add Prompt" to get started.</p>
-                <Button onClick={addPrompt} className="mt-4">
-                  <PlusIcon />
-                  Add Your First Prompt
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-          <TabsContent value="analytics">
-             {chartData.length > 0 ? (
-              <Card>
-                <CardHeader>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div>
-                            <CardTitle>Analytics Overview</CardTitle>
-                            <CardDescription>
-                            Use the controls to toggle metrics and chart types.
-                            </CardDescription>
-                        </div>
-                        <div className="flex items-center gap-6">
-                            <div className="flex items-center gap-4 text-sm">
-                                {(Object.keys(chartConfig) as Array<keyof typeof chartConfig>).map((key) => (
-                                    <div key={key} className="flex items-center gap-2">
-                                        <Checkbox
-                                            id={`metric-${key}`}
-                                            checked={selectedMetrics.includes(key)}
-                                            onCheckedChange={(checked) => {
-                                                setSelectedMetrics(prev => 
-                                                    checked ? [...prev, key] : prev.filter((m) => m !== key)
-                                                )
-                                            }}
-                                        />
-                                        <Label htmlFor={`metric-${key}`} className="capitalize flex items-center gap-1.5 cursor-pointer">
-                                            <span style={{ backgroundColor: chartConfig[key].color }} className="w-2.5 h-2.5 rounded-full inline-block" />
-                                            {chartConfig[key].label}
-                                        </Label>
-                                    </div>
-                                ))}
-                            </div>
-                            <ToggleGroup type="single" value={activeChart} onValueChange={(value: 'bar' | 'line' | 'radar' | '') => { if (value) setActiveChart(value) }} aria-label="Chart type" variant="outline" size="sm">
-                                <ToggleGroupItem value="bar" aria-label="Bar chart">
-                                    <BarChart2 className="h-4 w-4" />
-                                </ToggleGroupItem>
-                                <ToggleGroupItem value="line" aria-label="Line chart">
-                                    <LineChartIcon className="h-4 w-4" />
-                                </ToggleGroupItem>
-                                <ToggleGroupItem value="radar" aria-label="Radar chart">
-                                    <RadarIcon className="h-4 w-4" />
-                                </ToggleGroupItem>
-                            </ToggleGroup>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer config={chartConfig} className="min-h-[450px] w-full">
-                    {activeChart === 'bar' && (
-                        <BarChart data={chartData}>
-                            <CartesianGrid vertical={false} />
-                            <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                            <YAxis />
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                            <Legend />
-                            {selectedMetrics.map(metric => (
-                                <Bar key={metric} dataKey={metric} fill={`var(--color-${metric})`} radius={4} />
-                            ))}
-                        </BarChart>
-                    )}
-                    {activeChart === 'line' && (
-                        <LineChart data={chartData}>
-                            <CartesianGrid vertical={false} />
-                            <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                            <YAxis />
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                            <Legend />
-                             {selectedMetrics.map(metric => (
-                                <Line key={metric} type="monotone" dataKey={metric} stroke={`var(--color-${metric})`} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                            ))}
-                        </LineChart>
-                    )}
-                    {activeChart === 'radar' && (
-                        <RadarChart data={chartData}>
-                            <CartesianGrid />
-                            <PolarAngleAxis dataKey="name" />
-                            <PolarRadiusAxis angle={30} domain={[0, 'auto']} />
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                            <Legend />
-                            {selectedMetrics.map(metric => (
-                                <RechartsRadar key={metric} name={chartConfig[metric].label} dataKey={metric} stroke={`var(--color-${metric})`} fill={`var(--color-${metric})`} fillOpacity={0.6} />
-                            ))}
-                        </RadarChart>
-                    )}
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-            ) : (
-                 <div className="flex h-[60vh] flex-col items-center justify-center rounded-xl border-2 border-dashed">
-                    <BarChart2 className="h-12 w-12 text-muted-foreground" />
-                    <h2 className="mt-4 text-xl font-medium text-muted-foreground">No data to display.</h2>
-                    <p className="text-muted-foreground">Run some prompts to see analytics here.</p>
+        <main className="container mx-auto p-4 md:p-8">
+          <Tabs defaultValue="cards" className="w-full">
+            <div className="flex justify-end mb-4">
+              <TabsList>
+                <TabsTrigger value="cards"><LayoutGrid className="mr-2 h-4 w-4" />Card View</TabsTrigger>
+                <TabsTrigger value="analytics" disabled={chartData.length === 0}><BarChart2 className="mr-2 h-4 w-4" />Analytics</TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="cards">
+              {prompts.length > 0 ? (
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                  {prompts.map((prompt, index) => (
+                    <PromptCard
+                      key={prompt.id}
+                      promptData={prompt}
+                      onUpdate={updatePrompt}
+                      onDelete={deletePrompt}
+                      onSave={savePromptToLibrary}
+                      index={index}
+                    />
+                  ))}
                 </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </main>
-    </div>
+              ) : (
+                <div className="flex h-[60vh] flex-col items-center justify-center rounded-xl border-2 border-dashed">
+                  <h2 className="text-xl font-medium text-muted-foreground">No prompts yet.</h2>
+                  <p className="text-muted-foreground">Click "Add Prompt" to get started.</p>
+                  <Button onClick={() => addPrompt()} className="mt-4">
+                    <PlusIcon />
+                    Add Your First Prompt
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+            <TabsContent value="analytics">
+              {chartData.length > 0 ? (
+                <Card>
+                  <CardHeader>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                          <div>
+                              <CardTitle>Analytics Overview</CardTitle>
+                              <CardDescription>
+                              Use the controls to toggle metrics and chart types.
+                              </CardDescription>
+                          </div>
+                          <div className="flex items-center gap-6">
+                              <div className="flex items-center gap-4 text-sm">
+                                  {(Object.keys(chartConfig) as Array<keyof typeof chartConfig>).map((key) => (
+                                      <div key={key} className="flex items-center gap-2">
+                                          <Checkbox
+                                              id={`metric-${key}`}
+                                              checked={selectedMetrics.includes(key)}
+                                              onCheckedChange={(checked) => {
+                                                  setSelectedMetrics(prev => 
+                                                      checked ? [...prev, key] : prev.filter((m) => m !== key)
+                                                  )
+                                              }}
+                                          />
+                                          <Label htmlFor={`metric-${key}`} className="capitalize flex items-center gap-1.5 cursor-pointer">
+                                              <span style={{ backgroundColor: chartConfig[key].color }} className="w-2.5 h-2.5 rounded-full inline-block" />
+                                              {chartConfig[key].label}
+                                          </Label>
+                                      </div>
+                                  ))}
+                              </div>
+                              <ToggleGroup type="single" value={activeChart} onValueChange={(value: 'bar' | 'line' | 'radar' | '') => { if (value) setActiveChart(value) }} aria-label="Chart type" variant="outline" size="sm">
+                                  <ToggleGroupItem value="bar" aria-label="Bar chart">
+                                      <BarChart2 className="h-4 w-4" />
+                                  </ToggleGroupItem>
+                                  <ToggleGroupItem value="line" aria-label="Line chart">
+                                      <LineChartIcon className="h-4 w-4" />
+                                  </ToggleGroupItem>
+                                  <ToggleGroupItem value="radar" aria-label="Radar chart">
+                                      <RadarIcon className="h-4 w-4" />
+                                  </ToggleGroupItem>
+                              </ToggleGroup>
+                          </div>
+                      </div>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer config={chartConfig} className="min-h-[450px] w-full">
+                      {activeChart === 'bar' && (
+                          <BarChart data={chartData}>
+                              <CartesianGrid vertical={false} />
+                              <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
+                              <YAxis />
+                              <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                              <Legend />
+                              {selectedMetrics.map(metric => (
+                                  <Bar key={metric} dataKey={metric} fill={`var(--color-${metric})`} radius={4} />
+                              ))}
+                          </BarChart>
+                      )}
+                      {activeChart === 'line' && (
+                          <LineChart data={chartData}>
+                              <CartesianGrid vertical={false} />
+                              <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
+                              <YAxis />
+                              <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                              <Legend />
+                              {selectedMetrics.map(metric => (
+                                  <Line key={metric} type="monotone" dataKey={metric} stroke={`var(--color-${metric})`} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                              ))}
+                          </LineChart>
+                      )}
+                      {activeChart === 'radar' && (
+                          <RadarChart data={chartData}>
+                              <CartesianGrid />
+                              <PolarAngleAxis dataKey="name" />
+                              <PolarRadiusAxis angle={30} domain={[0, 'auto']} />
+                              <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                              <Legend />
+                              {selectedMetrics.map(metric => (
+                                  <RechartsRadar key={metric} name={chartConfig[metric].label} dataKey={metric} stroke={`var(--color-${metric})`} fill={`var(--color-${metric})`} fillOpacity={0.6} />
+                              ))}
+                          </RadarChart>
+                      )}
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              ) : (
+                  <div className="flex h-[60vh] flex-col items-center justify-center rounded-xl border-2 border-dashed">
+                      <BarChart2 className="h-12 w-12 text-muted-foreground" />
+                      <h2 className="mt-4 text-xl font-medium text-muted-foreground">No data to display.</h2>
+                      <p className="text-muted-foreground">Run some prompts to see analytics here.</p>
+                  </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
+      <SavedPromptsSidebar
+        isOpen={isLibraryOpen}
+        onOpenChange={setIsLibraryOpen}
+        prompts={savedPrompts}
+        onLoad={loadPromptFromLibrary}
+        onDelete={deletePromptFromLibrary}
+      />
+    </>
   );
 }
