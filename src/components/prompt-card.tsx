@@ -42,14 +42,26 @@ import {
 import type { Prompt } from '@/lib/types';
 import type { PromptOptimizerOutput } from '@/ai/flows/prompt-optimizer';
 import { runPromptAction, optimizePromptAction } from '@/app/actions';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 
 interface PromptCardProps {
   promptData: Prompt;
   onUpdate: (id: number, data: Partial<Prompt>) => void;
   onDelete: (id: number) => void;
   index: number;
-  model: string;
 }
+
+const models = [
+  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+  { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+  { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+];
 
 function Metric({
   icon,
@@ -87,11 +99,12 @@ export function PromptCard({
   onUpdate,
   onDelete,
   index,
-  model,
 }: PromptCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
-  const [optimization, setOptimization] = useState<PromptOptimizerOutput | null>(null);
+  const [optimization, setOptimization] = useState<PromptOptimizerOutput | null>(
+    null
+  );
   const [isOptimizeOpen, setOptimizeOpen] = useState(false);
   const { toast } = useToast();
 
@@ -106,7 +119,7 @@ export function PromptCard({
     }
     setIsLoading(true);
     try {
-      const result = await runPromptAction(promptData.prompt, model);
+      const result = await runPromptAction(promptData.prompt, promptData.model);
       onUpdate(promptData.id, { result });
     } catch (error) {
       console.error('Error running prompt:', error);
@@ -131,7 +144,10 @@ export function PromptCard({
     }
     setIsOptimizing(true);
     try {
-      const result = await optimizePromptAction(promptData.prompt, model);
+      const result = await optimizePromptAction(
+        promptData.prompt,
+        promptData.model
+      );
       setOptimization(result);
       setOptimizeOpen(true);
     } catch (error) {
@@ -192,23 +208,43 @@ export function PromptCard({
         </CardHeader>
         <CardContent className="flex flex-1 flex-col gap-4">
           <div className="grid gap-2">
+            <Label htmlFor={`model-${promptData.id}`}>Model</Label>
+            <Select
+              value={promptData.model}
+              onValueChange={value => onUpdate(promptData.id, { model: value })}
+            >
+              <SelectTrigger id={`model-${promptData.id}`}>
+                <SelectValue placeholder="Select a model" />
+              </SelectTrigger>
+              <SelectContent>
+                {models.map(model => (
+                  <SelectItem key={model.value} value={model.value}>
+                    {model.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
             <Label htmlFor={`prompt-${promptData.id}`}>Prompt</Label>
             <Textarea
               id={`prompt-${promptData.id}`}
               placeholder="Enter your prompt here..."
               value={promptData.prompt}
-              onChange={e => onUpdate(promptData.id, { prompt: e.target.value })}
+              onChange={e =>
+                onUpdate(promptData.id, { prompt: e.target.value })
+              }
               rows={4}
               className="resize-none"
             />
           </div>
           <div className="flex gap-2">
-            <Button onClick={handleRun} disabled={isLoading || isOptimizing} className="w-full bg-primary/80 hover:bg-primary text-primary-foreground">
-              {isLoading ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <Play />
-              )}
+            <Button
+              onClick={handleRun}
+              disabled={isLoading || isOptimizing}
+              className="w-full bg-primary/80 hover:bg-primary text-primary-foreground"
+            >
+              {isLoading ? <Loader2 className="animate-spin" /> : <Play />}
               Run
             </Button>
             <Button
@@ -237,15 +273,22 @@ export function PromptCard({
                 </div>
               ) : promptData.result ? (
                 <>
-                  <p className="whitespace-pre-wrap">{promptData.result.result}</p>
-                   <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-1 h-7 w-7 text-muted-foreground opacity-50 transition-opacity hover:opacity-100"
-                      onClick={() => handleCopyToClipboard(promptData.result?.result || '', 'Result')}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
+                  <p className="whitespace-pre-wrap">
+                    {promptData.result.result}
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1 h-7 w-7 text-muted-foreground opacity-50 transition-opacity hover:opacity-100"
+                    onClick={() =>
+                      handleCopyToClipboard(
+                        promptData.result?.result || '',
+                        'Result'
+                      )
+                    }
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
                 </>
               ) : (
                 <span className="text-muted-foreground">
@@ -277,7 +320,9 @@ export function PromptCard({
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="text-xl">{promptData.result.quality}</span>
+                    <span className="text-xl">
+                      {promptData.result.quality}
+                    </span>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>Quality Score</p>
@@ -296,13 +341,16 @@ export function PromptCard({
       <Dialog open={isOptimizeOpen} onOpenChange={setOptimizeOpen}>
         <DialogContent className="sm:max-w-[625px]">
           <DialogHeader>
-            <DialogTitle className="font-headline text-xl">Prompt Optimizer</DialogTitle>
+            <DialogTitle className="font-headline text-xl">
+              Prompt Optimizer
+            </DialogTitle>
             <DialogDescription>
-              The AI has suggested the following improvements. You can apply them or close this dialog.
+              The AI has suggested the following improvements. You can apply them
+              or close this dialog.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-             <div className="grid gap-2">
+            <div className="grid gap-2">
               <Label>Explanation</Label>
               <p className="text-sm text-muted-foreground rounded-md border p-3 bg-muted/50">
                 {optimization?.explanation}
@@ -311,15 +359,22 @@ export function PromptCard({
             <div className="grid gap-2">
               <Label>Optimized Prompt</Label>
               <div className="relative rounded-md border p-3 bg-muted/50">
-                 <p className="text-sm whitespace-pre-wrap font-code">{optimization?.optimizedPrompt}</p>
-                 <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1 h-7 w-7 text-muted-foreground opacity-50 transition-opacity hover:opacity-100"
-                    onClick={() => handleCopyToClipboard(optimization?.optimizedPrompt || '', 'Optimized prompt')}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
+                <p className="text-sm whitespace-pre-wrap font-code">
+                  {optimization?.optimizedPrompt}
+                </p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1 h-7 w-7 text-muted-foreground opacity-50 transition-opacity hover:opacity-100"
+                  onClick={() =>
+                    handleCopyToClipboard(
+                      optimization?.optimizedPrompt || '',
+                      'Optimized prompt'
+                    )
+                  }
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           </div>

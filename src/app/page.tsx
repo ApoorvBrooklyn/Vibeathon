@@ -13,14 +13,13 @@ import { Bar, BarChart, CartesianGrid, Legend, XAxis, YAxis, Line, LineChart, Ra
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
 
 const initialPrompts: Prompt[] = [
   {
     id: 1,
     prompt: 'Write a short, upbeat marketing slogan for a new brand of coffee called "Morning Star".',
     result: null,
+    model: 'gemini-2.0-flash',
   },
 ];
 
@@ -45,13 +44,6 @@ export default function Home() {
   const nextId = useRef(initialPrompts.length + 1);
   const [activeChart, setActiveChart] = useState<'bar' | 'line' | 'radar'>('bar');
   const [selectedMetrics, setSelectedMetrics] = useState<(keyof typeof chartConfig)[]>(['latency', 'length']);
-  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
-
-  const models = [
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-  ];
 
   const chartData = useMemo(() => {
     return prompts
@@ -76,6 +68,7 @@ export default function Home() {
         id: nextId.current++,
         prompt: '',
         result: null,
+        model: 'gemini-2.0-flash',
       },
     ]);
   }, []);
@@ -94,6 +87,7 @@ export default function Home() {
     const headers = [
       'id',
       'prompt',
+      'model',
       'result',
       'quality',
       'length',
@@ -104,6 +98,7 @@ export default function Home() {
       [
         p.id,
         `"${p.prompt.replace(/"/g, '""')}"`,
+        p.model,
         `"${p.result?.result.replace(/"/g, '""') ?? ''}"`,
         p.result?.quality ?? '',
         p.result?.length ?? '',
@@ -133,16 +128,6 @@ export default function Home() {
             <h1 className="font-headline text-2xl font-bold">PromptPilot</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger className="w-[180px] hidden md:flex">
-                <SelectValue placeholder="Select a model" />
-              </SelectTrigger>
-              <SelectContent>
-                {models.map(model => (
-                  <SelectItem key={model.value} value={model.value}>{model.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Button onClick={addPrompt} variant="outline">
               <PlusIcon />
               Add Prompt
@@ -173,7 +158,6 @@ export default function Home() {
                     onUpdate={updatePrompt}
                     onDelete={deletePrompt}
                     index={index}
-                    model={selectedModel}
                   />
                 ))}
               </div>

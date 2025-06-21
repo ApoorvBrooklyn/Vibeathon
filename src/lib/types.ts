@@ -4,4 +4,5 @@ export interface Prompt {
   id: number;
   prompt: string;
   result: GenerateRealtimeResultOutput | null;
+  model: string;
 }
