@@ -44,24 +44,24 @@ const generateRealtimeResultFlow = ai.defineFlow(
   },
   async input => {
     const startTime = Date.now();
-    const {output, tokenCount} = await generateRealtimeResultPrompt(input);
+    const {output, usage} = await generateRealtimeResultPrompt(input);
     const endTime = Date.now();
     const latency = endTime - startTime;
 
     // Basic quality assignment logic. Could be replaced with a more sophisticated model.
     let quality = '🤔';
-    if (output!.result.length > 10) {
+    if (output?.result && output.result.length > 10) {
       quality = '👍';
-    } else if (output!.result.length > 5) {
+    } else if (output?.result && output.result.length > 5) {
       quality = '👌';
     }
 
     return {
-      result: output!.result,
+      result: output?.result || '',
       quality: quality,
-      length: output!.result.length,
+      length: output?.result?.length || 0,
       latency: latency,
-      tokenUsage: tokenCount.totalCount,
+      tokenUsage: usage.totalTokens,
     };
   }
 );
